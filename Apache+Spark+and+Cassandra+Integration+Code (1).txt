@@ -1,0 +1,39 @@
+CREATE KEYSPACE sparkcassandra
+   WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};
+
+USE sparkcassandra;
+
+
+CREATE TABLE ReadData (
+    Empid int PRIMARY KEY,
+    Emp_name text
+) WITH comment='Reading Cassandra Data from Apache Spark';
+
+INSERT INTO ReadData (Empid, Emp_name)
+   VALUES (1, 'Sam');
+
+INSERT INTO ReadData (Empid, Emp_name)
+   VALUES (2, 'Joy');
+
+SELECT * FROM ReadData;
+
+CREATE TABLE WriteData (
+    Empid int PRIMARY KEY,
+    Emp_name text
+) WITH comment='Writing Spark Data to Apache Cassandra';
+
+
+spark-shell --conf spark.cassandra.connection.host=127.0.0.1 \
+                            --packages com.datastax.spark:spark-cassandra-connector_2.12:3.1.0 \
+                            --conf spark.sql.extensions=com.datastax.spark.connector.CassandraSparkExtensions
+
+spark.conf.set(s"spark.sql.catalog.mycatalog", "com.datastax.spark.connector.datasource.CassandraCatalog")
+
+spark.sql("SELECT * FROM mycatalog.sparkcassandra.readdata;").show
+
+val df = spark.read.table("mycatalog.sparkcassandra.readdata")
+println(df.count)
+df.show
+
+
+df.writeTo("mycatalog.sparkcassandra.writedata").append
